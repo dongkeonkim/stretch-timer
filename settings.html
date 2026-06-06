@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    ::-webkit-scrollbar { display: none; }
+    html { overflow-y: scroll; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #1e1e1e;
+      color: #fff;
+      padding: 56px 30px 30px;
+      -webkit-app-region: drag;
+      user-select: none;
+    }
+    h2 { font-size: 16px; margin-bottom: 14px; font-weight: 500; }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      -webkit-app-region: no-drag;
+    }
+    input, select {
+      vertical-align: middle;
+      padding: 8px 12px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      background: #2a2a2a;
+      color: #fff;
+      font-size: 16px;
+      text-align: center;
+      outline: none;
+    }
+    input:focus, select:focus { border-color: #007aff; }
+    input[type="number"] { width: auto; -moz-appearance: textfield; }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    select { width: auto; -webkit-appearance: none; appearance: none; }
+    label { font-size: 14px; color: #aaa; white-space: nowrap; line-height: 36px; }
+    .divider { border-top: 1px solid #333; margin: 20px 0; }
+    .hint { font-size: 12px; color: #666; margin-bottom: 24px; }
+    button {
+      -webkit-app-region: no-drag;
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .btn-toggle {
+      background: #333;
+      border: 1px solid #555;
+      color: #ddd;
+    }
+    .btn-toggle:hover { background: #444; }
+    .btn-toggle.running { background: #ff453a; color: #fff; border: none; }
+    .btn-toggle.running:hover { background: #d93830; }
+  </style>
+</head>
+<body>
+  <h2>타이머 설정</h2>
+
+  <div class="row">
+    <input type="text" id="interval" inputmode="numeric" pattern="[0-9]*" value="30" size="3">
+    <select id="unit">
+      <option value="min">분</option>
+      <option value="hour">시간</option>
+    </select>
+    <label>마다 알림</label>
+  </div>
+
+  <div class="divider"></div>
+
+  <h2>활성화 시간</h2>
+
+  <div class="row">
+    <select id="activeStart"></select>
+    <label>시</label>
+    <span style="color:#666;">~</span>
+    <select id="activeEnd"></select>
+    <label>시</label>
+  </div>
+
+  <div class="hint">활성화 시간 외에는 타이머가 자동으로 멈춥니다</div>
+
+  <button id="toggle" class="btn-toggle">시작</button>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    const startSel = document.getElementById('activeStart');
+    const endSel = document.getElementById('activeEnd');
+
+    for (let i = 0; i <= 23; i++) {
+      startSel.add(new Option(`${i}`, i));
+      endSel.add(new Option(`${i}`, i));
+    }
+
+    ipcRenderer.invoke('get-settings').then(s => {
+      const unit = document.getElementById('unit');
+      if (s.interval >= 60 && s.interval % 60 === 0) {
+        document.getElementById('interval').value = s.interval / 60;
+        unit.value = 'hour';
+      } else {
+        document.getElementById('interval').value = s.interval;
+        unit.value = 'min';
+      }
+      startSel.value = s.activeStart;
+      endSel.value = s.activeEnd;
+    });
+
+    const toggleBtn = document.getElementById('toggle');
+
+    function updateToggle(running) {
+      toggleBtn.textContent = running ? '중지' : '시작';
+      toggleBtn.className = running ? 'btn-toggle running' : 'btn-toggle';
+    }
+
+    ipcRenderer.invoke('get-running').then(running => updateToggle(running));
+
+    toggleBtn.addEventListener('click', () => {
+      ipcRenderer.invoke('get-running').then(running => {
+        if (running) {
+          ipcRenderer.send('timer-stop');
+          updateToggle(false);
+        } else {
+          ipcRenderer.send('timer-start');
+          updateToggle(true);
+        }
+      });
+    });
+
+    function saveSettings() {
+      const val = parseInt(document.getElementById('interval').value) || 30;
+      const unit = document.getElementById('unit').value;
+      const minutes = unit === 'hour' ? val * 60 : val;
+      ipcRenderer.send('set-settings', {
+        interval: minutes,
+        activeStart: parseInt(startSel.value),
+        activeEnd: parseInt(endSel.value)
+      });
+    }
+
+    document.getElementById('interval').addEventListener('input', (e) => {
+      e.target.value = e.target.value.replace(/[^0-9]/g, '');
+      saveSettings();
+    });
+    document.getElementById('unit').addEventListener('change', saveSettings);
+    startSel.addEventListener('change', saveSettings);
+    endSel.addEventListener('change', saveSettings);
+  </script>
+</body>
+</html>

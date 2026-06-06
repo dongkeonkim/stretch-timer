@@ -1,0 +1,26 @@
+{
+  "name": "stretch-timer",
+  "version": "1.0.0",
+  "description": "설정한 간격마다 스트레칭을 알려주는 macOS 메뉴바 앱",
+  "productName": "Stretch Timer",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.stretchtimer.app",
+    "mac": {
+      "category": "public.app-category.healthcare-fitness",
+      "icon": "icon.png",
+      "target": "dmg"
+    },
+    "dmg": {
+      "title": "Stretch Timer"
+    }
+  },
+  "devDependencies": {
+    "electron": "^41.0.3",
+    "electron-builder": "^26.0.12"
+  }
+}
